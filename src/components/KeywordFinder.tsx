@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
-import { ParagraphData } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ParagraphData, Keyword, TabMode } from '../types';
 import { PARAGRAPHS_DATA } from '../data/paragraphs';
-import { CheckCircle2, AlertCircle, Volume2, Search, ArrowRight, Eye, EyeOff, RotateCcw, Sparkles } from 'lucide-react';
+import {
+  CheckCircle2,
+  AlertCircle,
+  Volume2,
+  Search,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Sparkles,
+  Square,
+  BookOpen,
+  Brain,
+  GraduationCap,
+  X,
+  HelpCircle,
+  Lightbulb,
+  ChevronRight,
+} from 'lucide-react';
 
 interface KeywordFinderProps {
   paragraph: ParagraphData;
   foundKeywordIds: string[];
   onUpdateFoundKeywords: (paragraphId: number, keywordIds: string[]) => void;
   onNextParagraph: () => void;
+  onSelectTab: (tab: TabMode) => void;
 }
 
 // Prepositions and Function words to suppress tooltips for
@@ -78,6 +97,52 @@ const IDIOMS_AND_PHRASES: Array<{ phrase: string; meaning: string }> = [
   { phrase: 'sustainable world', meaning: '지속 가능한 세상' },
   { phrase: 'even more importantly', meaning: '더욱 중요한 것은' },
 ];
+
+// Custom pedagogical importance dictionary mapping words to why they matter
+const KEYWORD_IMPORTANCE_MAP: Record<string, string> = {
+  dropped: 'Liz의 노트북 고장 사건을 유발하는 결정적 동작 어휘입니다. 본문 전체 이야기의 시작점이 됩니다.',
+  damaging: '노트북 손상 상태를 설명하며, 수리(repair)와 폐기(e-waste) 사이의 현실적 갈등을 유발하는 원인 어휘입니다.',
+  repaired: '전자 쓰레기 배출을 막는 가장 근본적 행동으로, Lesson 4의 핵심 주제인 수리 권리(Right to Repair)의 출발점입니다.',
+  hesitating: '비싼 수리비와 긴 소요 시간 때문에 소비자들이 수리를 선뜻 하지 못하는 현실적 고민을 잘 보여주는 어휘입니다.',
+  reasonable: '단기적으로 새 제품 구매가 더 이성적/합리적으로 보이지만, 지구 환경 측면에서는 그렇지 않다는 반전을 나타냅니다.',
+  'contributing to': '개인의 무심한 행위(노트북 폐기)가 심각한 지구 환경 문제(e-waste)로 연결됨을 설명하는 핵심 인과 구문입니다.',
+  'e-waste': 'Lesson 4의 핵심 주제어로, 버려지는 전자기기 쓰레기와 이로 인한 지구 환경 오염 문제를 뜻하는 가장 중요한 핵심 어휘입니다.',
+  refers: '전자 쓰레기(e-waste)의 학술적/사회적 정의를 도입할 때 사용되는 개념 설명용 어휘입니다.',
+  discarded: '버려진 전자기기(discarded electrical devices)를 수식하는 어휘로, e-waste로 분류되는 대상의 상태를 구체화합니다.',
+  toxic: '전자 쓰레기 내부에 함유된 유독성 물질을 지칭하며, e-waste가 왜 인체와 자연에 치명적인 위험(hazard)인지 설명합니다.',
+  increasing: '전 세계 전자 쓰레기 발생량이 가파르게 늘어나고 있는 시급한 상황을 보여주는 추세 설명 어휘입니다.',
+  hazard: '전자 쓰레기가 토양과 수질을 오염시키고 인체 건강에 유해한 영향을 미친다는 경각심을 전달하는 핵심 명사입니다.',
+  generated: '전 세계적으로 매년 수천만 톤씩 발생하는 e-waste의 엄청난 생산 규모를 나타내는 어휘입니다.',
+  predict: '환경 전문가들의 미래 예측을 전달하며, 대책 마련이 시급함을 경고하는 전망 관련 어휘입니다.',
+  doubled: '전자 쓰레기 양이 불과 몇 년 만에 2배로 증가할 것이라는 심각성을 숫자로 입증하는 어휘입니다.',
+  address: '전자 쓰레기 문제에 적극적으로 대응하고 해결책을 모색한다는 의미의 중요 동사입니다.',
+  approaches: '단순 쓰레기 수거를 넘어 소비자의 수리권 보장 등 현실적이고 실용적인 문제 해결 접근법을 의미합니다.',
+  movement: '소비자의 권리를 되찾고 환경을 보호하려는 사회적 캠페인 및 법적 운동(Right to Repair movement)을 지칭합니다.',
+  empowering: '소비자에게 직접 기기를 수리하고 선택할 권한을 부여한다는 수리권 운동의 핵심 가치를 나타냅니다.',
+  dispose: '기기를 무분별하게 버리기보다 안전하게 처리하고 재활용하는 책임 있는 자원 관리 행위를 뜻합니다.',
+  disassemble: '제조사가 기기를 분해하기 어렵게 설계한 현실적 장벽을 나타내며, 수리 권리 법안의 필요성을 뒷받침합니다.',
+  manufacturer: '전자제품을 생산하는 기업으로, 기기의 수리 가능성과 부품 공급 책임을 지는 주요 주체입니다.',
+  'third-party': '공식 수리점 외의 제삼자(사설 수리점)를 의미하며, 수리 비용 단가를 낮추고 접근성을 높이는 핵심 주체입니다.',
+  intentionally: '제조사들이 자사 이익을 위해 의도적으로 수리를 어렵게 만든 구조적 문제를 지적하는 핵심 부사입니다.',
+  legislation: '소비자의 수리할 권리를 법적으로 의무화하고 보장하는 법률 제정 노력을 의미합니다.',
+  prohibited: '사설 수리나 사용자 직접 수리를 금지하던 제조사의 정책적 장벽을 설명하는 어휘입니다.',
+  accomplished: '수리권 운동가들이 이끌어낸 법적·제도적 성과와 사회적 변화를 평가하는 어휘입니다.',
+  repairability: '제품이 얼마나 고쳐 쓰기 쉬운지를 평가하는 개념으로, 지속 가능한 소비 시스템의 중심 지표입니다.',
+  index: '소비자가 구매 전에 제품의 수리 난이도를 한눈에 확인할 수 있도록 점수화한 정책 지수입니다.',
+  'color-coded': '수리 가능성 점수를 색상별로 직관적으로 구분하여 소비자의 합리적 선택을 돕는 디자인 요소입니다.',
+  account: '법안 및 지수 산정 시 부품 가격, 수리 설명서 등 다양한 환경 요소를 종합적으로 고려함을 의미합니다.',
+  landfills: '수리되지 못한 기기들이 결국 매립지에 묻혀 심각한 오염을 유발하는 최종 거점으로, 감소시켜야 할 대상입니다.',
+  transition: '선형 경제(버리는 구조)에서 지속 가능한 순환 경제(고쳐 쓰는 구조)로의 거대한 사회적 변화를 의미합니다.',
+  innovative: '수리 카페(Repair Café) 등 지역 사회 중심의 새롭고 창의적인 문제 해결 방식을 수식하는 어휘입니다.',
+  gather: '지역 주민과 기술 전문가들이 함께 모여 기기를 고치고 지식을 나누는 공동체 활동을 나타냅니다.',
+  volunteer: '대가 없이 자신의 기술과 시간을 나누어 주민들의 기기 수리를 돕는 자원봉사자들의 헌신을 뜻합니다.',
+  invaluable: '수리 카페에서 얻는 기술과 경험이 매우 소중하고 가치 있음을 강조하는 고득점 핵심 형용사입니다.',
+  spans: '기기의 사용 수명(life spans)을 연장시킴으로써 새로운 자원 소모와 쓰레기 발생을 줄이는 핵심 원리입니다.',
+  foster: '지역 사회 내에서 지속 가능한 소비와 자원 재사용에 대한 긍정적 관점을 육성하고 확산함을 나타냅니다.',
+  refurbished: '헌 기기를 재단장하여 신제품처럼 재사용함으로써 원자재 추출을 줄이는 순환 경제의 핵심 어휘입니다.',
+  circularity: '자원이 버려지지 않고 계속 재활용되는 순환성(circularity) 개념으로 4과의 최종 비전입니다.',
+  sustainable: '환경을 파괴하지 않고 지속 가능한 미래를 만들어가는 Lesson 4 전체의 대전제 키워드입니다.',
+};
 
 // Dictionary covering English words in Lesson 4
 const EXTENDED_DICTIONARY: Record<string, string> = {
@@ -259,11 +324,23 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
   foundKeywordIds,
   onUpdateFoundKeywords,
   onNextParagraph,
+  onSelectTab,
 }) => {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [hasChecked, setHasChecked] = useState<boolean>(foundKeywordIds.length > 0);
   const [showKoreanTranslation, setShowKoreanTranslation] = useState<boolean>(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [activeAnalysisKeyword, setActiveAnalysisKeyword] = useState<Keyword | null>(null);
+
+  // Stop speech synthesis when changing paragraphs or unmounting
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [paragraph.id]);
 
   const cleanWord = (str: string) => str.toLowerCase().replace(/[^a-z0-9-]/g, '');
 
@@ -273,10 +350,8 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
   const getPhraseGroupForIndex = (idx: number) => {
     if (idx < 0 || idx >= textWords.length) return null;
 
-    // Collect candidates: current paragraph keywords, global idioms, all paragraph keywords
     const candidateList: Array<{ phrase: string; meaning: string; isKeyword: boolean; id?: string }> = [];
 
-    // Target paragraph keywords first
     for (const k of paragraph.keywords) {
       candidateList.push({
         phrase: k.word,
@@ -286,7 +361,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       });
     }
 
-    // Idioms & phrasal verbs
     for (const item of IDIOMS_AND_PHRASES) {
       candidateList.push({
         phrase: item.phrase,
@@ -295,7 +369,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       });
     }
 
-    // All paragraph keywords
     for (const p of PARAGRAPHS_DATA) {
       for (const k of p.keywords) {
         candidateList.push({
@@ -307,7 +380,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       }
     }
 
-    // Sort multi-word phrases by word count descending so longest match wins
     const multiWordCandidates = candidateList
       .filter((c) => c.phrase.includes(' ') || c.phrase.includes('-'))
       .sort((a, b) => b.phrase.length - a.phrase.length);
@@ -316,7 +388,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       const pWords = candidate.phrase.split(/[\s-]+/).map(cleanWord).filter(Boolean);
       if (pWords.length <= 1) continue;
 
-      // Scan textWords to see if pWords match starting around idx
       const len = pWords.length;
       for (let start = Math.max(0, idx - len + 1); start <= Math.min(idx, textWords.length - len); start++) {
         let match = true;
@@ -357,51 +428,113 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
     }
   };
 
-  const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
+  // Toggle read-aloud playback (Play/Stop toggle)
+  const toggleSpeakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+
+    if (isPlayingAudio || window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+    } else {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
+      utterance.rate = 0.9;
+
+      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onerror = () => setIsPlayingAudio(false);
+
+      setIsPlayingAudio(true);
       window.speechSynthesis.speak(utterance);
     }
   };
 
+  const speakSingleWord = (word: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleCheckKeywords = () => {
-    const selectedCleanedWords = selectedIndices
-      .map((i) => cleanWord(textWords[i]))
-      .filter(Boolean);
+    const matchedIds: string[] = [];
 
-    const matchedIds = paragraph.keywords
-      .filter((k) => {
-        const targetClean = cleanWord(k.word);
-        const targetParts = targetClean.split(' ').filter(Boolean);
+    for (const k of paragraph.keywords) {
+      const kWords = k.word.split(/[\s-]+/).map(cleanWord).filter(Boolean);
+      if (kWords.length === 0) continue;
 
-        if (targetParts.length === 1) {
-          return selectedCleanedWords.includes(targetParts[0]);
+      // Skip single-word prepositions or function words
+      if (kWords.length === 1 && FUNCTION_WORDS.has(kWords[0])) {
+        continue;
+      }
+
+      const len = kWords.length;
+      for (let start = 0; start <= textWords.length - len; start++) {
+        let match = true;
+        for (let offset = 0; offset < len; offset++) {
+          if (cleanWord(textWords[start + offset]) !== kWords[offset]) {
+            match = false;
+            break;
+          }
         }
-        return targetParts.every((part) => selectedCleanedWords.includes(part));
-      })
-      .map((k) => k.id);
+        if (match) {
+          const rangeIndices = Array.from({ length: len }, (_, i) => start + i);
+          if (rangeIndices.every((i) => selectedIndices.includes(i))) {
+            matchedIds.push(k.id);
+            break;
+          }
+        }
+      }
+    }
 
     const updated = Array.from(new Set([...foundKeywordIds, ...matchedIds]));
     onUpdateFoundKeywords(paragraph.id, updated);
     setHasChecked(true);
   };
 
-  const handleAutoReveal = () => {
-    const allIds = paragraph.keywords.map((k) => k.id);
-    onUpdateFoundKeywords(paragraph.id, allIds);
-    setHasChecked(true);
-  };
-
   const handleReset = () => {
     setSelectedIndices([]);
     setHasChecked(false);
+    setActiveAnalysisKeyword(null);
   };
 
   const targetKeywords = paragraph.keywords;
   const foundList = targetKeywords.filter((k) => foundKeywordIds.includes(k.id));
   const missedList = targetKeywords.filter((k) => !foundKeywordIds.includes(k.id));
+
+  // Get sentence context for a keyword
+  const getContextSentence = (keywordWord: string) => {
+    const cleanTarget = cleanWord(keywordWord);
+    const enSentences = paragraph.textEn.split(/(?<=[.!?])\s+/);
+    const koSentences = paragraph.textKo.split(/(?<=[.!?])\s+/);
+
+    for (let i = 0; i < enSentences.length; i++) {
+      const sEn = enSentences[i];
+      const sKo = koSentences[i] || paragraph.textKo;
+      if (sEn.toLowerCase().includes(cleanTarget) || sEn.toLowerCase().includes(keywordWord.toLowerCase())) {
+        return {
+          sentenceEn: sEn,
+          sentenceKo: sKo,
+        };
+      }
+    }
+
+    return {
+      sentenceEn: paragraph.textEn,
+      sentenceKo: paragraph.textKo,
+    };
+  };
+
+  // Get pedagogical reason why this keyword is essential
+  const getImportanceExplanation = (k: Keyword) => {
+    const keyClean = cleanWord(k.word);
+    if (KEYWORD_IMPORTANCE_MAP[keyClean]) {
+      return KEYWORD_IMPORTANCE_MAP[keyClean];
+    }
+    return `이 키워드는 '${paragraph.title}'의 핵심 구문을 구성하며, 글의 맥락과 Lesson 4의 전자 쓰레기 문제 및 해결책 주제를 파악하는 데 필수적인 핵심 어휘입니다.`;
+  };
 
   // Determine hover information for word index
   const getHoverInfo = (idx: number) => {
@@ -409,7 +542,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
     const currentClean = cleanWord(wordRaw);
     if (!currentClean) return null;
 
-    // 1. Check if token belongs to a multi-word phrase / idiom
     const phraseGroup = getPhraseGroupForIndex(idx);
     if (phraseGroup) {
       return {
@@ -422,12 +554,10 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       };
     }
 
-    // 2. Suppress prepositions and function words completely!
     if (FUNCTION_WORDS.has(currentClean)) {
       return null;
     }
 
-    // 3. Check single-word target keywords in current paragraph
     for (const k of paragraph.keywords) {
       const kClean = cleanWord(k.word);
       if (kClean === currentClean || (kClean.length >= 4 && currentClean.includes(kClean))) {
@@ -442,7 +572,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       }
     }
 
-    // 4. Check single-word keywords across all paragraphs
     for (const p of PARAGRAPHS_DATA) {
       for (const k of p.keywords) {
         const kClean = cleanWord(k.word);
@@ -459,7 +588,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       }
     }
 
-    // 5. Check extended dictionary for meaningful content words
     if (EXTENDED_DICTIONARY[currentClean]) {
       return {
         title: wordRaw.replace(/[^a-zA-Z0-9-]/g, ''),
@@ -471,7 +599,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
       };
     }
 
-    // Do NOT return generic fallback box for prepositions or unlisted words!
     return null;
   };
 
@@ -481,6 +608,39 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
     : hoveredIdx !== null
     ? [hoveredIdx]
     : [];
+
+  const foundPercent = targetKeywords.length > 0 ? Math.round((foundList.length / targetKeywords.length) * 100) : 0;
+
+  const foundRanges = new Set<number>();
+  const missedRanges = new Set<number>();
+  if (hasChecked) {
+    for (const k of targetKeywords) {
+      const isFound = foundKeywordIds.includes(k.id);
+      const kWords = k.word.split(/[\s-]+/).map(cleanWord).filter(Boolean);
+      if (kWords.length === 0) continue;
+      if (kWords.length === 1 && FUNCTION_WORDS.has(kWords[0])) continue;
+
+      const len = kWords.length;
+      for (let start = 0; start <= textWords.length - len; start++) {
+        let match = true;
+        for (let offset = 0; offset < len; offset++) {
+          if (cleanWord(textWords[start + offset]) !== kWords[offset]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          for (let i = 0; i < len; i++) {
+            if (isFound) {
+              foundRanges.add(start + i);
+            } else {
+              missedRanges.add(start + i);
+            }
+          }
+        }
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -496,20 +656,35 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
           <h2 className="text-xl font-bold text-slate-900">{paragraph.subtitleKo}</h2>
           <p className="text-xs text-slate-500 mt-1 flex items-center space-x-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-500 inline" />
-            <span>단어나 숙어/구동사 위에 마우스를 올려 뜻을 확인하고, 클릭하여 키워드를 학습하세요.</span>
+            <span>단어나 숙어/구동사 위에 마우스를 올려 뜻을 확인하고, 클릭하여 키워드를 수집해 보세요.</span>
           </p>
         </div>
 
+        {/* Action Controls: Audio Toggle Play/Stop & Korean Translation Toggle */}
         <div className="flex items-center space-x-2">
           <button
-            id="read-aloud-btn"
-            onClick={() => speakText(paragraph.textEn)}
-            className="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
-            title="영문 전체 듣기"
+            id="toggle-read-aloud-btn"
+            onClick={() => toggleSpeakText(paragraph.textEn)}
+            className={`flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition shadow-sm ${
+              isPlayingAudio
+                ? 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 ring-2 ring-red-400/30'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+            }`}
+            title={isPlayingAudio ? '원문 읽기 중단' : '원문 전체 읽기'}
           >
-            <Volume2 className="w-4 h-4 text-emerald-600" />
-            <span>원문 듣기</span>
+            {isPlayingAudio ? (
+              <>
+                <Square className="w-3.5 h-3.5 text-red-600 fill-red-600 animate-pulse" />
+                <span className="font-bold">듣기 중단</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="w-4 h-4 text-emerald-600" />
+                <span>원문 듣기</span>
+              </>
+            )}
           </button>
+
           <button
             id="toggle-translation-btn"
             onClick={() => setShowKoreanTranslation(!showKoreanTranslation)}
@@ -526,16 +701,30 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
         {/* Left 2 Cols: Reading & Word Picker */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-100 gap-2">
               <div className="flex items-center space-x-2">
                 <Search className="w-4 h-4 text-emerald-600" />
                 <h3 className="text-sm font-bold text-slate-800">
                   English Passage (숙어/구동사는 하나의 묶음으로 통합 표시)
                 </h3>
               </div>
-              <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full">
-                선택된 단어/구문: {selectedIndices.length}개
-              </span>
+              <div className="flex items-center space-x-2">
+                {hasChecked && (
+                  <div className="flex items-center space-x-2 text-[11px] font-semibold">
+                    <span className="inline-flex items-center space-x-1 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>찾은 키워드</span>
+                    </span>
+                    <span className="inline-flex items-center space-x-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>놓친 키워드</span>
+                    </span>
+                  </div>
+                )}
+                <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full">
+                  선택된 단어/구문: {selectedIndices.length}개
+                </span>
+              </div>
             </div>
 
             {/* Clickable Paragraph Words with Tooltips */}
@@ -544,17 +733,8 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
                 const cleaned = cleanWord(word);
                 const isSelected = selectedIndices.includes(idx);
                 const isHoveredGroup = hoveredIndices.includes(idx);
-
-                // Check if this word belongs to a target keyword after check
-                const isTargetFound =
-                  hasChecked &&
-                  targetKeywords.some((k) => {
-                    const kClean = cleanWord(k.word);
-                    return (
-                      foundKeywordIds.includes(k.id) &&
-                      (kClean.includes(cleaned) || kClean.split(' ').includes(cleaned))
-                    );
-                  });
+                const isTargetFound = foundRanges.has(idx);
+                const isTargetMissed = missedRanges.has(idx);
 
                 const hoverInfo = hoveredIdx === idx ? getHoverInfo(idx) : null;
 
@@ -568,8 +748,10 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
                       className={`cursor-pointer px-1.5 py-0.5 rounded transition-all duration-150 font-medium select-none ${
                         isTargetFound
                           ? 'bg-emerald-200 text-emerald-950 font-bold border-b-2 border-emerald-500 ring-2 ring-emerald-400/30'
+                          : isTargetMissed
+                          ? 'bg-amber-200 text-amber-950 font-bold border-b-2 border-amber-500 ring-2 ring-amber-400/30'
                           : isSelected
-                          ? 'bg-amber-300 text-amber-950 font-bold ring-2 ring-amber-400 shadow-sm'
+                          ? 'bg-indigo-200 text-indigo-950 font-bold ring-2 ring-indigo-400 shadow-sm'
                           : isHoveredGroup
                           ? 'bg-indigo-100 text-indigo-950 font-semibold ring-2 ring-indigo-400/80 border-b-2 border-indigo-500'
                           : 'hover:bg-slate-200/90 text-slate-800'
@@ -578,7 +760,7 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
                       {word}
                     </span>
 
-                    {/* Korean Meaning Hover Tooltip - Suppressed for function words */}
+                    {/* Korean Meaning Hover Tooltip */}
                     {hoveredIdx === idx && hoverInfo && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3 py-2 bg-slate-900 text-white text-xs rounded-xl shadow-2xl z-50 whitespace-nowrap pointer-events-none animate-fadeIn border border-slate-700/80">
                         <div className="flex items-center space-x-1.5 font-bold text-emerald-400">
@@ -597,7 +779,6 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
                         <div className="text-slate-100 font-medium mt-0.5 text-xs">
                           {hoverInfo.meaning}
                         </div>
-                        {/* Arrow */}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
                       </div>
                     )}
@@ -606,7 +787,7 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
               })}
             </div>
 
-            {/* Control buttons below text */}
+            {/* Control buttons below text (Auto Reveal button removed per request) */}
             <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
               <button
                 id="reset-selection-btn"
@@ -617,27 +798,18 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
                 <span>선택 초기화</span>
               </button>
 
-              <div className="flex items-center space-x-2">
-                <button
-                  id="auto-reveal-keywords-btn"
-                  onClick={handleAutoReveal}
-                  className="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-                >
-                  모든 키워드 정답 공개
-                </button>
-                <button
-                  id="check-keywords-btn"
-                  onClick={handleCheckKeywords}
-                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition flex items-center space-x-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>키워드 확인하기</span>
-                </button>
-              </div>
+              <button
+                id="check-keywords-btn"
+                onClick={handleCheckKeywords}
+                className="px-5 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition flex items-center space-x-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>선택 단어 분석 및 키워드 확인</span>
+              </button>
             </div>
           </div>
 
-          {/* Korean Translation Accordion */}
+          {/* Korean Translation Box */}
           {showKoreanTranslation && (
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-5 text-slate-800 animate-fadeIn">
               <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider mb-2">
@@ -646,15 +818,117 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
               <p className="text-sm leading-relaxed text-slate-700">{paragraph.textKo}</p>
             </div>
           )}
+
+          {/* Connected Learning Step Navigation Buttons (After Checking Keywords) */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-700/80 pb-3">
+              <div>
+                <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">
+                  단계별 연계 학습 코스
+                </span>
+                <h3 className="text-base font-bold text-white mt-0.5">
+                  다음 연습 단계로 바로 이동하기
+                </h3>
+              </div>
+              <span className="text-xs bg-emerald-500/20 text-emerald-300 font-semibold px-2.5 py-1 rounded-full border border-emerald-500/30">
+                문단 {paragraph.id} 학습 진행 중
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Step 2: Vocab Quiz */}
+              <button
+                id="goto-vocab-quiz-btn"
+                onClick={() => onSelectTab('vocab')}
+                className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/90 hover:border-emerald-400 text-left rounded-xl border border-slate-700 transition group flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:bg-white/20 group-hover:text-white transition">
+                    <Brain className="w-4 h-4" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-200 group-hover:text-white">
+                    2단계. 단어 퀴즈
+                  </div>
+                  <div className="text-[11px] text-slate-400 group-hover:text-emerald-100 mt-0.5">
+                    핵심 어휘 확인 테스트
+                  </div>
+                </div>
+              </button>
+
+              {/* Step 3: Sentence Practice */}
+              <button
+                id="goto-sentence-practice-btn"
+                onClick={() => onSelectTab('sentence')}
+                className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/90 hover:border-emerald-400 text-left rounded-xl border border-slate-700 transition group flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:bg-white/20 group-hover:text-white transition">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-200 group-hover:text-white">
+                    3단계. 문장 해석 연습
+                  </div>
+                  <div className="text-[11px] text-slate-400 group-hover:text-emerald-100 mt-0.5">
+                    빈칸 채우기 및 순서 배열
+                  </div>
+                </div>
+              </button>
+
+              {/* Step 4: Comprehension Quiz */}
+              <button
+                id="goto-comprehension-quiz-btn"
+                onClick={() => onSelectTab('comprehension')}
+                className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/90 hover:border-emerald-400 text-left rounded-xl border border-slate-700 transition group flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:bg-white/20 group-hover:text-white transition">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-200 group-hover:text-white">
+                    4단계. 문단 이해 퀴즈
+                  </div>
+                  <div className="text-[11px] text-slate-400 group-hover:text-emerald-100 mt-0.5">
+                    수능형 지문 이해 문제
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Option to move to Next Paragraph */}
+            {paragraph.id < 7 && (
+              <div className="pt-2 flex justify-end">
+                <button
+                  id="go-next-paragraph-btn"
+                  onClick={onNextParagraph}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center space-x-1.5 shadow"
+                >
+                  <span>다음 문단({paragraph.id + 1}) 키워드 학습으로 이동</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right 1 Col: Found vs Missed Keywords Display */}
+        {/* Right 1 Col: Found vs Missed Keywords Display & Interactive Importance Inspector */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-slate-800 flex items-center justify-between border-b pb-3 border-slate-100">
-              <span>🎯 키워드 분석 결과</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
-                {foundKeywordIds.length} / {targetKeywords.length} 달성
+              <span className="flex items-center space-x-1.5">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <span>🎯 키워드 탐색 및 분석 결과</span>
+              </span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold">
+                {foundKeywordIds.length} / {targetKeywords.length} 달성 ({foundPercent}%)
               </span>
             </h3>
 
@@ -662,41 +936,77 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
               <div className="py-8 text-center text-slate-400 space-y-2">
                 <Search className="w-8 h-8 mx-auto text-slate-300" />
                 <p className="text-xs">
-                  본문 단어 및 숙어/구동사 위로 마우스를 올려 뜻을 확인하고, 클릭 후 '키워드 확인하기'를 눌러 수집해 보세요.
+                  본문 단어 및 숙어를 클릭한 후 아래 <strong className="text-slate-600">'선택 단어 분석 및 키워드 확인'</strong>을 누르면 탐색 결과와 단어별 중요성 분석이 나타납니다.
                 </p>
                 <p className="text-[11px] text-emerald-600 font-medium">
                   ✓ 문장별 핵심 키워드가 최소 1개 이상 배치되어 있습니다.
                 </p>
               </div>
             ) : (
-              <div className="space-y-5 mt-4">
+              <div className="space-y-5">
+                {/* Score Progress Bar */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-700">
+                    <span>핵심 키워드 탐색 성취도</span>
+                    <span className="text-emerald-600 font-bold">{foundPercent}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full transition-all duration-500 rounded-full"
+                      style={{ width: `${foundPercent}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 italic mt-1">
+                    {foundPercent === 100
+                      ? '🎉 완벽합니다! 모든 주요 키워드를 수집했습니다.'
+                      : missedList.length > 0
+                      ? '💡 아래 놓친 단어를 클릭하여 왜 이 키워드가 지문에서 중요한지 해석을 확인해보세요!'
+                      : '잘하셨습니다!'}
+                  </p>
+                </div>
+
                 {/* Found Keywords Section */}
                 <div>
-                  <div className="flex items-center space-x-2 text-xs font-bold text-emerald-700 mb-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>찾은 키워드 ({foundList.length}개)</span>
+                  <div className="flex items-center justify-between text-xs font-bold text-emerald-700 mb-2">
+                    <span className="flex items-center space-x-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>찾은 키워드 ({foundList.length}개)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">클릭 시 중요성 해석 보기</span>
                   </div>
                   {foundList.length === 0 ? (
                     <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-lg border">
-                      아직 일치하는 키워드를 찾지 못했습니다.
+                      아직 찾은 키워드가 없습니다. 본문을 다시 확인해 보세요.
                     </p>
                   ) : (
                     <div className="space-y-2">
                       {foundList.map((k) => (
                         <div
                           key={k.id}
-                          className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl"
+                          onClick={() => setActiveAnalysisKeyword(k)}
+                          className={`p-2.5 bg-emerald-50/90 hover:bg-emerald-100/90 border border-emerald-200/90 rounded-xl cursor-pointer transition flex items-center justify-between group ${
+                            activeAnalysisKeyword?.id === k.id ? 'ring-2 ring-emerald-500 shadow-md' : ''
+                          }`}
                         >
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-bold text-emerald-900">{k.word}</span>
+                            <span className="text-sm font-bold text-emerald-950 group-hover:text-emerald-700">
+                              {k.word}
+                            </span>
                             <button
-                              onClick={() => speakText(k.word)}
-                              className="text-emerald-600 hover:text-emerald-800"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                speakSingleWord(k.word);
+                              }}
+                              className="text-emerald-600 hover:text-emerald-800 p-0.5 rounded"
+                              title="발음 듣기"
                             >
                               <Volume2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <span className="text-xs font-medium text-emerald-700">{k.meaning}</span>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-xs font-medium text-emerald-800">{k.meaning}</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-0.5 transition" />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -705,55 +1015,141 @@ export const KeywordFinder: React.FC<KeywordFinderProps> = ({
 
                 {/* Missed Keywords Section */}
                 <div>
-                  <div className="flex items-center space-x-2 text-xs font-bold text-amber-700 mb-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span>놓친 키워드 ({missedList.length}개)</span>
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-800 mb-2">
+                    <span className="flex items-center space-x-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>놓친 키워드 ({missedList.length}개)</span>
+                    </span>
+                    <span className="text-[10px] text-amber-600 font-medium">클릭 시 왜 중요한지 해석 보기</span>
                   </div>
                   {missedList.length === 0 ? (
                     <div className="p-3 bg-emerald-100/70 border border-emerald-200 rounded-xl text-center text-xs font-bold text-emerald-800">
-                      🎉 축하합니다! 모든 주요 키워드를 정확히 확인했습니다!
+                      🎉 축하합니다! 모든 주요 키워드를 정확히 찾았습니다!
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {missedList.map((k) => (
                         <div
                           key={k.id}
-                          className="flex items-center justify-between p-2.5 bg-amber-50 border border-amber-200 rounded-xl"
+                          onClick={() => setActiveAnalysisKeyword(k)}
+                          className={`p-2.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-200 rounded-xl cursor-pointer transition flex items-center justify-between group ${
+                            activeAnalysisKeyword?.id === k.id ? 'ring-2 ring-amber-500 shadow-md' : ''
+                          }`}
                         >
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-bold text-amber-900">{k.word}</span>
+                            <span className="text-sm font-bold text-amber-950 group-hover:text-amber-800">
+                              {k.word}
+                            </span>
                             <button
-                              onClick={() => speakText(k.word)}
-                              className="text-amber-600 hover:text-amber-800"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                speakSingleWord(k.word);
+                              }}
+                              className="text-amber-600 hover:text-amber-800 p-0.5 rounded"
+                              title="발음 듣기"
                             >
                               <Volume2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <span className="text-xs font-medium text-amber-800">{k.meaning}</span>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs font-medium text-amber-900">{k.meaning}</span>
+                            <span className="text-[10px] bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded font-bold ml-1">
+                              해석 분석
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-
-                {/* Next paragraph prompt */}
-                {paragraph.id < 7 && (
-                  <button
-                    id="go-next-paragraph-btn"
-                    onClick={onNextParagraph}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2 mt-2"
-                  >
-                    <span>다음 문단({paragraph.id + 1}) 키워드 학습하기</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             )}
           </div>
+
+          {/* Detailed Keyword Analysis & Importance Inspector Card */}
+          {activeAnalysisKeyword && (
+            <div className="bg-white rounded-2xl p-5 border-2 border-emerald-500/80 shadow-lg animate-fadeIn space-y-3 relative">
+              <button
+                onClick={() => setActiveAnalysisKeyword(null)}
+                className="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center space-x-2 pr-6">
+                <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-700">
+                  <Lightbulb className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                    키워드 집중 분석 카드
+                  </span>
+                  <h4 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                    <span>{activeAnalysisKeyword.word}</span>
+                    <span className="text-xs font-normal text-slate-500">
+                      ({activeAnalysisKeyword.meaning})
+                    </span>
+                  </h4>
+                </div>
+              </div>
+
+              {/* Status Tag */}
+              <div className="flex items-center space-x-2">
+                {foundKeywordIds.includes(activeAnalysisKeyword.id) ? (
+                  <span className="inline-flex items-center space-x-1 text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>찾은 키워드</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center space-x-1 text-xs font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-200">
+                    <AlertCircle className="w-3 h-3 text-amber-600" />
+                    <span>놓친 키워드 분석</span>
+                  </span>
+                )}
+                <button
+                  onClick={() => speakSingleWord(activeAnalysisKeyword.word)}
+                  className="flex items-center space-x-1 text-xs text-slate-600 hover:text-emerald-700 bg-slate-100 px-2 py-0.5 rounded-md"
+                >
+                  <Volume2 className="w-3 h-3 text-emerald-600" />
+                  <span>발음 듣기</span>
+                </button>
+              </div>
+
+              {/* Context Sentence in Passage */}
+              {(() => {
+                const ctx = getContextSentence(activeAnalysisKeyword.word);
+                return (
+                  <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-700 block mb-0.5">📖 지문 속 활용 문장:</span>
+                      <p className="text-slate-800 font-medium leading-relaxed bg-white p-2 rounded border border-slate-200">
+                        "{ctx.sentenceEn}"
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-700 block mb-0.5">🇰🇷 문장 한글 해석:</span>
+                      <p className="text-slate-600 leading-relaxed italic bg-white p-2 rounded border border-slate-200">
+                        "{ctx.sentenceKo}"
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Why This Keyword Matters */}
+              <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl space-y-1">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-900">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>왜 이 키워드가 중요할까요? (지문 역할 & 맥락 분석)</span>
+                </div>
+                <p className="text-xs text-amber-950 font-medium leading-relaxed">
+                  {getImportanceExplanation(activeAnalysisKeyword)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
-
-

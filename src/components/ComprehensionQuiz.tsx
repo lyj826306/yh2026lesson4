@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { ParagraphData } from '../types';
-import { CheckCircle2, XCircle, HelpCircle, Award, RotateCcw, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ParagraphData, TabMode } from '../types';
+import { CheckCircle2, XCircle, HelpCircle, Award, RotateCcw, ArrowRight, ShieldCheck, GraduationCap } from 'lucide-react';
 
 interface ComprehensionQuizProps {
   paragraphs: ParagraphData[];
   selectedParagraphId: number;
+  onSelectTab: (tab: TabMode) => void;
+  onNextParagraph: () => void;
 }
 
 export const ComprehensionQuiz: React.FC<ComprehensionQuizProps> = ({
   paragraphs,
   selectedParagraphId,
+  onSelectTab,
+  onNextParagraph,
 }) => {
   const currentParagraph =
     paragraphs.find((p) => p.id === selectedParagraphId) || paragraphs[0];
@@ -275,6 +279,49 @@ export const ComprehensionQuiz: React.FC<ComprehensionQuizProps> = ({
           >
             <ShieldCheck className="w-4 h-4" />
             <span>3문제 정답 채점하기</span>
+          </button>
+        )}
+      </div>
+
+      {/* Step Transition: Comprehension Quiz -> Next Paragraph or Report */}
+      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8">
+        <div>
+          <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <GraduationCap className="w-4 h-4" />
+            <span>4단계 완료 (연계 학습 코스 마침)</span>
+          </div>
+          <h3 className="text-base font-bold text-white mt-1">
+            {selectedParagraphId < 7
+              ? `문단 ${selectedParagraphId}의 모든 학습을 마쳤습니다. 다음 문단으로 이동할까요?`
+              : '🎉 축하합니다! Lesson 4 전체 7개 문단 학습을 완수하셨습니다!'}
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {selectedParagraphId < 7
+              ? `문단 ${selectedParagraphId + 1}의 키워드 탐색부터 순차적으로 학습이 진행됩니다.`
+              : '나의 학습 종합 리포트에서 최종 성과와 놓친 어휘를 점검하세요.'}
+          </p>
+        </div>
+
+        {selectedParagraphId < 7 ? (
+          <button
+            id="goto-next-paragraph-from-comprehension-btn"
+            onClick={() => {
+              onNextParagraph();
+              onSelectTab('keywords');
+            }}
+            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2 shadow-md shrink-0"
+          >
+            <span>다음 문단({selectedParagraphId + 1}) 키워드 학습으로 이동</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            id="view-final-report-btn"
+            onClick={() => onSelectTab('report')}
+            className="px-6 py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2 shadow-md shrink-0"
+          >
+            <span>최종 학습 성과 리포트 보기</span>
+            <Award className="w-4 h-4" />
           </button>
         )}
       </div>

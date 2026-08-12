@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { ParagraphData, Keyword } from '../types';
-import { Brain, CheckCircle2, XCircle, Volume2, RotateCcw, ArrowRight, Award } from 'lucide-react';
+import { ParagraphData, Keyword, TabMode } from '../types';
+import { Brain, CheckCircle2, XCircle, Volume2, RotateCcw, ArrowRight, Award, GraduationCap } from 'lucide-react';
 
 interface VocabQuizProps {
   paragraphs: ParagraphData[];
   selectedParagraphId: number;
+  onSelectTab: (tab: TabMode) => void;
 }
 
 interface QuizQuestion {
@@ -17,7 +18,11 @@ interface QuizQuestion {
   explanation: string;
 }
 
-export const VocabQuiz: React.FC<VocabQuizProps> = ({ paragraphs, selectedParagraphId }) => {
+export const VocabQuiz: React.FC<VocabQuizProps> = ({
+  paragraphs,
+  selectedParagraphId,
+  onSelectTab,
+}) => {
   const [scope, setScope] = useState<'current' | 'all'>('current');
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -314,6 +319,30 @@ export const VocabQuiz: React.FC<VocabQuizProps> = ({ paragraphs, selectedParagr
           </button>
         </div>
       )}
+
+      {/* Step Transition: Vocab Quiz -> Sentence Practice */}
+      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8">
+        <div>
+          <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <GraduationCap className="w-4 h-4" />
+            <span>다음 연계 학습 코스</span>
+          </div>
+          <h3 className="text-base font-bold text-white mt-1">
+            단어 학습을 마쳤다면, 문장 해석 연습으로 이동하세요!
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            지문 속 실제 주요 문장들의 빈칸을 채우고 직접 배열해볼 수 있습니다.
+          </p>
+        </div>
+        <button
+          id="goto-sentence-practice-from-vocab-btn"
+          onClick={() => onSelectTab('sentence')}
+          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2 shadow-md shrink-0"
+        >
+          <span>3단계: 문장 해석 연습으로 이동</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 };

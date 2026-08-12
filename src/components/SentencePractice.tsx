@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { SentencePracticeItem, ParagraphData } from '../types';
-import { Volume2, CheckCircle2, RotateCcw, Award, Lightbulb, ArrowRight, ShieldCheck } from 'lucide-react';
+import { SentencePracticeItem, ParagraphData, TabMode } from '../types';
+import { Volume2, CheckCircle2, RotateCcw, Award, Lightbulb, ArrowRight, ShieldCheck, GraduationCap } from 'lucide-react';
 
 interface SentencePracticeProps {
   paragraph: ParagraphData;
   onCompleteSentence: (sentenceId: string, level: 'easy' | 'medium' | 'hard') => void;
+  onSelectTab: (tab: TabMode) => void;
 }
 
 export const SentencePractice: React.FC<SentencePracticeProps> = ({
   paragraph,
   onCompleteSentence,
+  onSelectTab,
 }) => {
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number>(0);
   const [level, setLevel] = useState<'easy' | 'medium' | 'hard'>('easy');
@@ -438,6 +440,30 @@ export const SentencePractice: React.FC<SentencePracticeProps> = ({
             </p>
           </div>
         )}
+      </div>
+
+      {/* Step Transition: Sentence Practice -> Comprehension Quiz */}
+      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8">
+        <div>
+          <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <GraduationCap className="w-4 h-4" />
+            <span>다음 연계 학습 코스</span>
+          </div>
+          <h3 className="text-base font-bold text-white mt-1">
+            문장 해석 연습이 끝났다면, 문단 이해 퀴즈로 이동하세요!
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            내용 일치, 진위 판별(O/X), 영문 주제 찾기 3문항 퀴즈로 수능형 지문 이해도를 확인합니다.
+          </p>
+        </div>
+        <button
+          id="goto-comprehension-quiz-from-sentence-btn"
+          onClick={() => onSelectTab('comprehension')}
+          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2 shadow-md shrink-0"
+        >
+          <span>4단계: 문단 이해 퀴즈로 이동</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
