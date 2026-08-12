@@ -1,0 +1,6 @@
+{
+  "name": "E-Waste Solutions Reading Mastery",
+  "description": "Lesson 4 Create a Greener Tomorrow - Interactive reading comprehension, keyword vocabulary, sentence translation practice, and paragraph quizzes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
