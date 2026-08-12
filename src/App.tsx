@@ -83,6 +83,7 @@ export default function App() {
             foundKeywordIds={userProgress.foundKeywords[activeParagraph.id] || []}
             onUpdateFoundKeywords={handleUpdateFoundKeywords}
             onNextParagraph={handleNextParagraph}
+            onSelectTab={setCurrentTab}
           />
         )}
 
@@ -90,6 +91,7 @@ export default function App() {
           <VocabQuiz
             paragraphs={PARAGRAPHS_DATA}
             selectedParagraphId={selectedParagraphId}
+            onSelectTab={setCurrentTab}
           />
         )}
 
@@ -97,6 +99,7 @@ export default function App() {
           <SentencePractice
             paragraph={activeParagraph}
             onCompleteSentence={handleCompleteSentence}
+            onSelectTab={setCurrentTab}
           />
         )}
 
@@ -104,6 +107,8 @@ export default function App() {
           <ComprehensionQuiz
             paragraphs={PARAGRAPHS_DATA}
             selectedParagraphId={selectedParagraphId}
+            onSelectTab={setCurrentTab}
+            onNextParagraph={handleNextParagraph}
           />
         )}
 
